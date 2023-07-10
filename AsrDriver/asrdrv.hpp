@@ -11,14 +11,18 @@ class asr_drv : public driver
 {
 	enum class ctl_code : std::uint32_t
 	{
-		enc_req = 0x22EC00,
+		enc_req		   = 0x22EC00,
 		alloc_krnl_mem = 0x22E880,
-		free_krnl_mem = 0x22E884,
-		outbyte = 0x22E888,
-		read_tsc = 0x22E864,
-		read_pmc = 0x22E868,
-		read_cr = 0x22E86C,
-		write_cr = 0x22E870,
+		free_krnl_mem  = 0x22E884,
+		outbyte		   = 0x22E888,
+		read_tsc       = 0x22E864,
+		read_pmc	   = 0x22E868,
+		read_cr		   = 0x22E86C,
+		write_cr	   = 0x22E870,
+		read_msr	   = 0x22E848,
+		write_msr	   = 0x22E84C,
+		read_phys_mem  = 0x22E808,
+		write_phys_mem = 0x22E80C,
 	};
 private:
 	
@@ -137,6 +141,40 @@ public:
 		request.cr_value = value;
 
 		send_request(ctl_code::write_cr, &request, sizeof request, &request, 0);
+	}
+
+	void read_phys_mem(std::uintptr_t phys_addr, std::uint32_t size, std::byte** buffer)
+	{
+		struct
+		{
+			std::uintptr_t phys_addr;
+			std::uint32_t size_in_bytes;
+			std::byte* byte_buffer;
+		} request;
+
+		request.byte_buffer = new std::byte[size];
+		request.size_in_bytes = size;
+		request.phys_addr = phys_addr;
+
+		send_request(ctl_code::read_phys_mem, &request, sizeof request, &request, sizeof request);
+		*buffer = request.byte_buffer;
+	}
+
+	std::uint64_t read_msr(std::uint32_t msr)
+	{
+		struct
+		{
+			std::uintptr_t value_low;
+			std::uint32_t msr;
+			std::uintptr_t value_high;
+		} request;
+
+		request.msr = msr;
+		std::cout << sizeof request << '\n';
+
+		send_request(ctl_code::read_msr, &request, sizeof request, &request, sizeof request);
+		
+		return (request.value_high >> 32 | request.value_low);
 	}
 
 };
